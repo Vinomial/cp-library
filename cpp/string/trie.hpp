@@ -16,13 +16,20 @@ namespace trie_lib
         {
             std::array<int, ALPHABET> children;
             int end_count = 0;   // このノードが終端である文字列が現在何本挿入されているか
-            long long prefix_count = 0; // このノードを通過した文字列の本数
+            long long prefix_count = 0; // このノードを通過した文字列の本数（根なら総本数）
 
             Node() { children.fill(-1); }
         };
 
         // nodes_[0] を根として初期化する
         Trie() { nodes_.push_back(Node()); }
+
+        // 根だけの空の状態に戻す
+        void clear()
+        {
+            nodes_.clear();
+            nodes_.push_back(Node());
+        }
 
         // ノード数の目安（挿入する文字列の長さの総和+1）が事前に分かる場合に呼ぶ
         void reserve(int n) { nodes_.reserve(n + 1); }
@@ -31,6 +38,7 @@ namespace trie_lib
         int insert(const std::string &s)
         {
             int cur = 0;
+            ++nodes_[cur].prefix_count; // 根 = 空文字列という接頭辞を通過した本数
             for (char c : s)
             {
                 const int idx = static_cast<int>(c - BASE);
@@ -50,6 +58,7 @@ namespace trie_lib
         void erase(const std::string &s)
         {
             int cur = 0;
+            --nodes_[cur].prefix_count; // insert と対称に根の分も減らす
             for (char c : s)
             {
                 const int idx = static_cast<int>(c - BASE);
@@ -83,12 +92,22 @@ namespace trie_lib
             return cur != -1 && nodes_[cur].end_count > 0;
         }
 
+        // s が現在何本挿入されているか
+        int count(const std::string &s) const
+        {
+            const int cur = find_node(s);
+            return cur == -1 ? 0 : nodes_[cur].end_count;
+        }
+
         // s を接頭辞に持つ文字列が 1 つ以上挿入されているか
         bool has_prefix(const std::string &s) const
         {
             const int cur = find_node(s);
             return cur != -1 && nodes_[cur].prefix_count > 0;
         }
+
+        // 挿入されている文字列が1本もないか
+        bool empty() const { return nodes_[root()].prefix_count == 0; }
 
         // ノード番号からノードの中身を参照する（問題ごとの探索ロジックはこれで書く）
         const Node &node(int i) const { return nodes_[i]; }

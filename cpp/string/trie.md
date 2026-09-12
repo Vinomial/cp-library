@@ -29,6 +29,10 @@ trie.erase("abc");      // "abc" を1本削除
 trie.contains("abc");   // false
 trie.has_prefix("ab");  // true  (abb がまだ残っている)
 
+trie.count("abc");      // 0     (現在の本数)
+trie.empty();           // false (abb が残っている)
+trie.node(trie.root()).prefix_count; // 1 (現在挿入されている総本数)
+
 // 自前の探索ロジックの例（ABC287E: 他の文字列との最長共通接頭辞）
 int cur = trie.root();
 int ans = 0;
@@ -53,6 +57,12 @@ Trie()
 ```
 根 (`nodes_[0]`) のみを持つ空のトライ木を作る。
 
+**clear**
+```C++
+void trie.clear()
+```
+根だけの空の状態に戻す。
+
 **reserve**
 ```C++
 void trie.reserve(int n)
@@ -64,14 +74,15 @@ void trie.reserve(int n)
 ```C++
 int trie.insert(const std::string &s)
 ```
-文字列 `s` を挿入し、終端ノードの番号を返す。挿入経路上の全ノードの `prefix_count` を+1し、
-終端ノードの `end_count` を+1する。同じ文字列を複数回insertしてよい。
+文字列 `s` を挿入し、終端ノードの番号を返す。根から終端ノードまでの経路上の全ノード（根も含む）の
+`prefix_count` を+1し、終端ノードの `end_count` を+1する。同じ文字列を複数回insertしてよい。
 
 **erase**
 ```C++
 void trie.erase(const std::string &s)
 ```
-文字列 `s` を1本削除する。経路上の全ノードの `prefix_count` を-1し、終端ノードの `end_count` を-1する。
+文字列 `s` を1本削除する。経路上の全ノード（根も含む）の `prefix_count` を-1し、
+終端ノードの `end_count` を-1する。
 
 前提: `s` が現在挿入されている（`std::multiset::erase(value)` と同様、挿入されていない `s` を渡すのは
 未定義動作）。違反していれば途中の `assert` で落ちる。
@@ -88,12 +99,24 @@ bool trie.contains(const std::string &s) const
 ```
 `s` がちょうど挿入されている文字列と一致するか（末端まで一致し、`end_count > 0` か）。
 
+**count**
+```C++
+int trie.count(const std::string &s) const
+```
+`s` が現在何本挿入されているか（`std::multiset::count` 相当）。挿入されていなければ `0`。
+
 **has_prefix**
 ```C++
 bool trie.has_prefix(const std::string &s) const
 ```
 `s` を接頭辞に持つ文字列が1つ以上挿入されているか（末端まで一致し、`prefix_count > 0` か）。
 `erase` で通過数が0になったノードは構造上は残るが、辿れても「存在する」とは数えない。
+
+**empty**
+```C++
+bool trie.empty() const
+```
+挿入されている文字列が1本もないか。
 
 **node / root / size**
 ```C++
@@ -102,14 +125,17 @@ int trie.root() const
 int trie.size() const
 ```
 ノード番号からノードの中身（`children` / `end_count` / `prefix_count`）を参照する。
-問題ごとの探索ロジックはこれらを使って呼び出し側で組み立てる。
+問題ごとの探索ロジックはこれらを使って呼び出し側で組み立てる。`size()` はトライの**ノード数**であり、
+挿入されている文字列の本数ではない（本数は `node(trie.root()).prefix_count` で得られる）。
 
 ### 計算量
 
-- `insert` / `erase` / `find_node` / `contains` / `has_prefix`: $O(|s|)$
+- `insert` / `erase` / `find_node` / `contains` / `count` / `has_prefix`: $O(|s|)$
+- `empty`: $O(1)$。`clear` はそれまでのノード数に比例するが、`Node` が trivial なため実質ノーコスト
 - 全体のノード数・メモリは $O(\Sigma |S_i| \times \mathrm{ALPHABET})$
 - `erase` はノード自体を回収しない（`prefix_count` / `end_count` を減らすのみ）ので、
-  何本削除してもメモリ使用量は減らない。
+  何本削除してもメモリ使用量は減らない。`clear` は文字列集合を空にするだけで、
+  確保済みのノード用メモリ自体は解放されない（`std::vector::clear` と同様）。
 
 ### よくあるミス
 
