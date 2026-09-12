@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <string>
 #include <vector>
 
@@ -15,7 +16,9 @@ namespace trie_lib
         struct Node
         {
             std::array<int, ALPHABET> children;
-            bool is_end = false;
+            // このノードが終端である文字列が、現在何本挿入されているか
+            // （同じ文字列を複数回insertできるようbool ではなくカウントで持つ）
+            int end_count = 0;
             // このノードが表す接頭辞を持つ文字列の本数（= このノードを通過した文字列の本数）
             long long prefix_count = 0;
 
@@ -46,8 +49,27 @@ namespace trie_lib
                 cur = nodes_[cur].children[idx];
                 ++nodes_[cur].prefix_count;
             }
-            nodes_[cur].is_end = true;
+            ++nodes_[cur].end_count;
             return cur;
+        }
+
+        // 文字列 s を1つ削除する
+        // 前提: s が現在挿入されている（std::multiset::erase(value) と同様、
+        //       挿入されていない s を渡すと未定義動作。呼び出し側の責任で保証すること。
+        //       違反していれば途中の assert で落ちる想定）
+        void erase(const std::string &s)
+        {
+            int cur = 0;
+            for (char c : s)
+            {
+                const int idx = static_cast<int>(c - BASE);
+                const int nxt = nodes_[cur].children[idx];
+                assert(nxt != -1); // s が挿入されていないパスを辿ろうとした
+                cur = nxt;
+                --nodes_[cur].prefix_count;
+            }
+            assert(nodes_[cur].end_count > 0); // s 自体は挿入されていない（接頭辞としてのみ存在）
+            --nodes_[cur].end_count;
         }
 
         // 文字列 s を辿った先のノード番号を返す（途中で辿れなくなったら -1）
@@ -64,17 +86,19 @@ namespace trie_lib
             return cur;
         }
 
-        // 文字列 s がちょうど挿入されているか（末端まで一致し、is_end が true か）
+        // 文字列 s がちょうど挿入されているか（末端まで一致し、end_count > 0 か）
         bool contains(const std::string &s) const
         {
             const int cur = find_node(s);
-            return cur != -1 && nodes_[cur].is_end;
+            return cur != -1 && nodes_[cur].end_count > 0;
         }
 
         // s を接頭辞に持つ文字列が 1 つ以上挿入されているか
+        // （eraseで通過数が0になったノードは辿れても数えない）
         bool has_prefix(const std::string &s) const
         {
-            return find_node(s) != -1;
+            const int cur = find_node(s);
+            return cur != -1 && nodes_[cur].prefix_count > 0;
         }
 
         // ノード番号からノードの中身を参照する

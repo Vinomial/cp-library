@@ -11,7 +11,7 @@ template <int ALPHABET = 26, char BASE = 'a'>
 class Trie
 ```
 
-文字列集合を管理するトライ木の最小限の骨組み。挿入・検索・接頭辞ごとの通過数カウントのみを提供し、
+文字列集合を管理するトライ木の最小限の骨組み。挿入・削除・検索・接頭辞ごとの通過数カウントのみを提供し、
 問題ごとの探索ロジック（LCP・XOR最大化など）は `node()` を使って呼び出し側で書く前提。
 
 ### 使い方
@@ -24,6 +24,10 @@ trie.insert("abb");
 trie.contains("abc");   // true  (ちょうど挿入されている)
 trie.contains("ab");    // false (途中までしか一致しない)
 trie.has_prefix("ab");  // true  (abで始まる文字列が存在する)
+
+trie.erase("abc");      // "abc" を1本削除
+trie.contains("abc");   // false
+trie.has_prefix("ab");  // true  (abb がまだ残っている)
 
 // 自前の探索ロジックの例（ABC287E: 他の文字列との最長共通接頭辞）
 int cur = trie.root();
@@ -60,7 +64,17 @@ void trie.reserve(int n)
 ```C++
 int trie.insert(const std::string &s)
 ```
-文字列 `s` を挿入し、終端ノードの番号を返す。挿入経路上の全ノードの `prefix_count` を+1する。
+文字列 `s` を挿入し、終端ノードの番号を返す。挿入経路上の全ノードの `prefix_count` を+1し、
+終端ノードの `end_count` を+1する。同じ文字列を複数回insertしてよい。
+
+**erase**
+```C++
+void trie.erase(const std::string &s)
+```
+文字列 `s` を1本削除する。経路上の全ノードの `prefix_count` を-1し、終端ノードの `end_count` を-1する。
+
+前提: `s` が現在挿入されている（`std::multiset::erase(value)` と同様、挿入されていない `s` を渡すのは
+未定義動作）。違反していれば途中の `assert` で落ちる。
 
 **find_node**
 ```C++
@@ -72,13 +86,14 @@ int trie.find_node(const std::string &s) const
 ```C++
 bool trie.contains(const std::string &s) const
 ```
-`s` がちょうど挿入されている文字列と一致するか（`is_end` まで確認）。
+`s` がちょうど挿入されている文字列と一致するか（末端まで一致し、`end_count > 0` か）。
 
 **has_prefix**
 ```C++
 bool trie.has_prefix(const std::string &s) const
 ```
-`s` を接頭辞に持つ文字列が1つ以上挿入されているか。
+`s` を接頭辞に持つ文字列が1つ以上挿入されているか（末端まで一致し、`prefix_count > 0` か）。
+`erase` で通過数が0になったノードは構造上は残るが、辿れても「存在する」とは数えない。
 
 **node / root / size**
 ```C++
@@ -86,13 +101,15 @@ const Node &trie.node(int i) const
 int trie.root() const
 int trie.size() const
 ```
-ノード番号からノードの中身（`children` / `is_end` / `prefix_count`）を参照する。
+ノード番号からノードの中身（`children` / `end_count` / `prefix_count`）を参照する。
 問題ごとの探索ロジックはこれらを使って呼び出し側で組み立てる。
 
 ### 計算量
 
-- `insert` / `find_node` / `contains` / `has_prefix`: $O(|s|)$
+- `insert` / `erase` / `find_node` / `contains` / `has_prefix`: $O(|s|)$
 - 全体のノード数・メモリは $O(\Sigma |S_i| \times \mathrm{ALPHABET})$
+- `erase` はノード自体を回収しない（`prefix_count` / `end_count` を減らすのみ）ので、
+  何本削除してもメモリ使用量は減らない。
 
 ### よくあるミス
 
@@ -102,6 +119,10 @@ int trie.size() const
   ある文字列が別の文字列の接頭辞になっているケース（例: `"abra"` と `"abracadabra"`）も
   特別扱いなく正しく処理できる。逆に、終端だけ数えたい／通過数を数えたくない場合は
   カウント対象を調整すること。
+- `erase(s)` は `s` が現在挿入されていることが前提（`std::multiset::erase(value)` と同様）。
+  挿入されていない文字列や、すでに削除済みの文字列をもう一度 `erase` すると未定義動作で、
+  途中の `assert` で落ちる（同じ文字列を2回 `insert` して1回しか `erase` していないのに
+  「もう無い」と思い込んで2回目の `erase` を呼んでしまう、といったミスが典型）。
 
 ### Trie とは？
 
