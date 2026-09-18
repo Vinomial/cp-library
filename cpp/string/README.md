@@ -4,4 +4,5 @@
 
 - [Next Occurrence](./next_occurrence.md)
 - [Trie](./trie.md)
+- [ZAlgorithm](./z_algorithm.md)
 

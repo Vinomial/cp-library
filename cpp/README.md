@@ -35,10 +35,13 @@
 
 ## Graph
 
+- [MaxFlow](./graph/max_flow.md)
 - [SCC](./graph/scc.md)
 - [Topological Sort](./graph/topological_sort.md)
 
 ## String
 
 - [Next Occurrence](./string/next_occurrence.md)
+- [Trie](./string/trie.md)
+- [ZAlgorithm](./string/z_algorithm.md)
 
